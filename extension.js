@@ -8,7 +8,6 @@ const ByteArray = imports.byteArray;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
-const Util = imports.misc.util;
 const Me = imports.misc.extensionUtils.getCurrentExtension();
 
 class Extension {
