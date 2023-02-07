@@ -68,15 +68,6 @@ class Extension {
       clearInterval(this._updateInterval);
     }
     this._updateInterval = null;
-
-    this._giconDisconnected.destroy();
-    this._giconDisconnected = null;
-
-    this._giconMeeting.destroy();
-    this._giconMeeting = null;
-
-    this._giconQuality.destroy();
-    this._giconQuality = null;
   }
 
   createMenu() {
