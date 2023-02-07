@@ -101,6 +101,7 @@ class Extension {
       'Meeting mode',
       false
     );
+    this._toggleProfileMenuItem.sensitive = false;
     this._toggleProfileMenuItem.connect(
       'button-press-event',
       this.toggleProfile.bind(this)
@@ -152,10 +153,13 @@ class Extension {
 
     if (activeProfile === Extension.QUALITY_MODE) {
       this._menuIcon.set_gicon(this._giconQuality);
+      this._toggleProfileMenuItem.sensitive = true;
     } else if (activeProfile === Extension.MEETING_MODE) {
       this._menuIcon.set_gicon(this._giconMeeting);
+      this._toggleProfileMenuItem.sensitive = true;
     } else {
       this._menuIcon.set_gicon(this._giconDisconnected);
+      this._toggleProfileMenuItem.sensitive = false;
     }
 
     this.setToggleProfileSwitch();
