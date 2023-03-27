@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 const St = imports.gi.St;
 const Gio = imports.gi.Gio;
@@ -12,38 +12,40 @@ const Me = imports.misc.extensionUtils.getCurrentExtension();
 
 class Extension {
   static get MEETING_MODE() {
-    return 'handsfree_head_unit';
+    return "handsfree_head_unit";
   }
 
   static get QUALITY_MODE() {
-    return 'a2dp_sink';
+    return "a2dp_sink";
   }
 
   static get TOP_BAR_LABEL() {
-    return 'Headphones';
+    return "Headphones";
   }
 
   constructor() {
     this._menu = null;
     this._menuIcon = null;
     this._menuLabel = null;
+    this._toggleDeviceConnectionMenuItem = null;
     this._toggleProfileMenuItem = null;
     this._updateInterval = null;
 
     this._giconDisconnected = new Gio.ThemedIcon({
-      name: 'action-unavailable-symbolic',
+      name: "action-unavailable-symbolic",
     });
     this._giconMeeting = new Gio.ThemedIcon({
-      name: 'audio-input-microphone-symbolic',
+      name: "audio-input-microphone-symbolic",
     });
     this._giconQuality = new Gio.ThemedIcon({
-      name: 'audio-headphones-symbolic',
+      name: "audio-headphones-symbolic",
     });
   }
 
   enable() {
     log(`enabling ${Me.metadata.name}`);
     this.createMenu();
+    this.createToggleDeviceConnectionMenuItem();
     this.createToggleProfileMenuItem();
     this.createUpdateInterval();
   }
@@ -59,6 +61,9 @@ class Extension {
 
     this._menuLabel.destroy();
     this._menuLabel = null;
+
+    this._toggleDeviceConnectionMenuItem.destroy();
+    this._toggleDeviceConnectionMenuItem = null;
 
     this._toggleProfileMenuItem.destroy();
     this._toggleProfileMenuItem = null;
@@ -77,7 +82,7 @@ class Extension {
 
     this._menuIcon = new St.Icon({
       gicon: this._giconDisconnected,
-      style_class: 'system-status-icon',
+      style_class: "system-status-icon",
     });
 
     this._menuLabel = new St.Label({
@@ -97,16 +102,32 @@ class Extension {
     log(`creating toggle profile menu item for ${Me.metadata.name}`);
 
     this._toggleProfileMenuItem = new PopupMenu.PopupSwitchMenuItem(
-      'Meeting mode',
+      "Meeting mode",
       false
     );
     this._toggleProfileMenuItem.sensitive = false;
     this._toggleProfileMenuItem.connect(
-      'button-press-event',
+      "button-press-event",
       this.toggleProfile.bind(this)
     );
     this._menu.menu.addMenuItem(this._toggleProfileMenuItem);
     this.setToggleProfileSwitch();
+  }
+
+  createToggleDeviceConnectionMenuItem() {
+    log(`creating toggle device connection menu item for ${Me.metadata.name}`);
+
+    this._toggleDeviceConnectionMenuItem = new PopupMenu.PopupSwitchMenuItem(
+      "Device connected",
+      false
+    );
+    this._toggleDeviceConnectionMenuItem.sensitive = true;
+    this._toggleDeviceConnectionMenuItem.connect(
+      "button-press-event",
+      this.toggleDeviceConnection.bind(this)
+    );
+    this._menu.menu.addMenuItem(this._toggleDeviceConnectionMenuItem);
+    this.setToggleDeviceConnectionSwitch();
   }
 
   setToggleProfileSwitch() {
@@ -121,6 +142,36 @@ class Extension {
         this._toggleProfileMenuItem.state === false)
     ) {
       this._toggleProfileMenuItem.toggle();
+    }
+  }
+
+  setToggleDeviceConnectionSwitch() {
+    log(`setting toggle device connection switch for ${Me.metadata.name}`);
+
+    const macAddress = this.getMacAddress();
+    const isConnected = this.isConnected(macAddress);
+
+    if (
+      (isConnected && this._toggleDeviceConnectionMenuItem.state === false) ||
+      (!isConnected && this._toggleDeviceConnectionMenuItem.state === true)
+    ) {
+      this._toggleDeviceConnectionMenuItem.toggle();
+    }
+  }
+
+  toggleDeviceConnection() {
+    log(`toggling device connection for ${Me.metadata.name}`);
+
+    const macAddress = this.getMacAddress();
+    const isConnected = this.isConnected(macAddress);
+
+    if (isConnected && this._toggleDeviceConnectionMenuItem.state === true) {
+      GLib.spawn_command_line_sync(`bluetoothctl disconnect ${macAddress}`);
+    } else if (
+      !isConnected &&
+      this._toggleDeviceConnectionMenuItem.state === false
+    ) {
+      GLib.spawn_command_line_sync(`bluetoothctl connect ${macAddress}`);
     }
   }
 
@@ -162,20 +213,35 @@ class Extension {
     }
 
     this.setToggleProfileSwitch();
+    this.setToggleDeviceConnectionSwitch();
+  }
+
+  getMacAddress() {
+    const output = GLib.spawn_command_line_sync(
+      "/bin/bash -c \"bluetoothctl devices | awk -F ' ' '/WH-1000XM4/ { print $2 }'\""
+    )[1];
+    return ByteArray.toString(output).trim();
+  }
+
+  isConnected(macAddress) {
+    const output = GLib.spawn_command_line_sync(
+      `/bin/bash -c "bluetoothctl info ${macAddress} | awk -F': ' '/Connected/ { print $2 }'"`
+    )[1];
+    return ByteArray.toString(output).trim() === "yes" ? true : false;
   }
 
   getActiveProfile() {
-    const [, rawActiveProfile] = GLib.spawn_command_line_sync(
+    const output = GLib.spawn_command_line_sync(
       "/bin/bash -c \"pactl list cards | awk -v RS='' '/bluez/' | awk -F': ' '/Active Profile/ { print $2 }'\""
-    );
-    return ByteArray.toString(rawActiveProfile).trim();
+    )[1];
+    return ByteArray.toString(output).trim();
   }
 
   getCardName() {
-    const [, rawCardName] = GLib.spawn_command_line_sync(
+    const output = GLib.spawn_command_line_sync(
       "/bin/bash -c \"pactl list cards | awk -v RS='' '/bluez/' | awk -F': ' '/Name/ { print $2 }'\""
-    );
-    return ByteArray.toString(rawCardName).trim();
+    )[1];
+    return ByteArray.toString(output).trim();
   }
 }
 
